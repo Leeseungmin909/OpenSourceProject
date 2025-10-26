@@ -2,7 +2,7 @@
 CC = gcc
 
 # 컴파일 옵션
-CFLAGS = -Wall -I./lib
+CFLAGS = -Wall -g -I./lib
 
 # 라이브러리로 만들 목적 파일 목록을 직접 지정
 OBJS = lib/add.o lib/subtract.o lib/multiply.o lib/divide.o
@@ -33,5 +33,4 @@ lib/%.o: lib/%.c
 
 # make clean 실행 시 생성된 파일들 삭제
 clean:
-	rm -f lib/*.o 
-
+	rm -f lib/*.o lib/*.a lib/*.so* lab2_static lab2_shared lab2_dynamic

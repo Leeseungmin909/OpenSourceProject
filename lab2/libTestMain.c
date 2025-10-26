@@ -3,7 +3,7 @@
 
 int main(){
 	int a = 100;
-       	int b = 10;
+    int b = 10;
 	
 	printf("add(%d,%d) = %d\n", a,b,add(a,b));
 	printf("subtract(%d,%d) = %d\n", a,b,subtract(a,b));
