@@ -5,61 +5,123 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include "commands.h" 
+#include "commands.h"
 
-// cp 
 void cmd_cp(char *src, char *dest) {
-    int fd_in, fd_out;
-    char buffer[4096];
-    ssize_t bytes;
+    int src_fd, dst_fd;
+    char buf[4096];
+    ssize_t rcnt, wcnt;
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
-    if ((fd_in = open(src, O_RDONLY)) < 0) {
-        perror("cp error");
+    if ((src_fd = open(src, O_RDONLY)) == -1) {
+        perror("cp: 원본 파일 열기 실패");
         return;
     }
-    if ((fd_out = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0) {
-        perror("cp dest error");
-        close(fd_in);
+
+    if ((dst_fd = open(dest, O_WRONLY | O_CREAT | O_TRUNC, mode)) == -1) {
+        perror("cp: 대상 파일 생성 실패");
+        close(src_fd);
         return;
     }
-    while ((bytes = read(fd_in, buffer, sizeof(buffer))) > 0) {
-        write(fd_out, buffer, bytes);
-    }
-    close(fd_in);
-    close(fd_out);
-}
 
-// mv 
-void cmd_mv(char *src, char *dest) {
-    if (rename(src, dest) < 0) {
-        perror("mv error");
-    }
-}
-
-// ln 
-void cmd_ln(char *src, char *dest) {
-    if (link(src, dest) < 0) {
-        perror("ln error");
-    }
-}
-
-// grep 
-void cmd_grep(char *pattern, char *filename) {
-    FILE *fp;
-    char *line = NULL;
-    size_t len = 0;
-    ssize_t read;
-
-    fp = fopen(filename, "r");
-    if (fp == NULL) {
-        perror("grep error");
-        return;
-    }
-    while ((read = getline(&line, &len, fp)) != -1) {
-        if (strstr(line, pattern) != NULL) {
-            printf("%s", line);
+    while ((rcnt = read(src_fd, buf, sizeof(buf))) > 0) {
+        wcnt = write(dst_fd, buf, rcnt);
+        if (wcnt != rcnt) {
+            perror("cp: 쓰기 오류");
+            break;
         }
     }
-    free(line);
+
+    if (rcnt < 0) {
+        perror("cp: 읽기 오류");
+    }
+
+    close(src_fd);
+    close(dst_fd);
+    
+    printf("cp: '%s' -> '%s' 복사 완료\n", src, dest);
+}
+
+void cmd_mv(char *src, char *dest) {
+    struct stat buf;
+    char *target;
+    char *src_file_name_only;
+
+    if (access(src, F_OK) < 0) {
+        fprintf(stderr, "mv: '%s' 파일이 존재하지 않음\n", src);
+        return;
+    }
+
+    char *slash = strrchr(src, '/');
+    src_file_name_only = src;
+    if (slash != NULL) {
+        src_file_name_only = slash + 1;
+    }
+
+    target = (char *)malloc(strlen(dest) + 1);
+    strcpy(target, dest);
+
+    if (access(dest, F_OK) == 0) {
+        if (lstat(dest, &buf) < 0) {
+            perror("mv: stat 실패");
+            free(target);
+            return;
+        }
+        if (S_ISDIR(buf.st_mode)) {
+            free(target);
+            target = (char *)malloc(strlen(src) + strlen(dest) + 2);
+            strcpy(target, dest);
+            strcat(target, "/");
+            strcat(target, src_file_name_only);
+        }
+    }
+
+    if (rename(src, target) < 0) {
+        perror("mv: 이름 변경 실패");
+        free(target);
+        return;
+    }
+
+    printf("mv: '%s' -> '%s' 이동 완료\n", src, target);
+    free(target);
+}
+
+void cmd_ln(char *src, char *dest) {
+    if (access(src, F_OK) < 0) {
+        fprintf(stderr, "ln: '%s' 파일이 존재하지 않음\n", src);
+        return;
+    }
+
+    if (link(src, dest) < 0) {
+        perror("ln: 링크 생성 실패");
+        return;
+    }
+    
+    printf("ln: '%s' -> '%s' 하드 링크 생성 완료\n", src, dest);
+}
+
+void cmd_grep(char *pattern, char *filename) {
+    FILE *fp;
+    char line[1024];
+    int line_num = 0;
+    int found = 0;
+
+    if ((fp = fopen(filename, "r")) == NULL) {
+        perror("grep: 파일 열기 실패");
+        return;
+    }
+
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        line_num++;
+        if (strstr(line, pattern) != NULL) {
+            printf("%s", line);
+            found = 1;
+        }
+    }
+
+    if (!found) {
+        printf("grep: '%s'에서 '%s' 패턴을 찾을 수 없음\n", filename, pattern);
+    }
+
     fclose(fp);
 }
