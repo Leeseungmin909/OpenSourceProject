@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -g
 LDFLAGS = -lreadline
 TARGET = myshell
-OBJS = myshell.o commands.o
+OBJS = myshell.o commands.o 
 
 all: $(TARGET)
 
@@ -16,6 +16,4 @@ commands.o: commands.c commands.h
 	$(CC) $(CFLAGS) -c commands.c
 
 clean:
-	rm -f $(OBJS) $(TARGET)
-
-.PHONY: all clean
+	rm -f $(OBJS) 
